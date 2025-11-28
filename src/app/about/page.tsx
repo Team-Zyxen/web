@@ -61,7 +61,7 @@ export default function AboutPage() {
                 </span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-white fade-in-up">
-                Who We Are
+                We Are
               </h2>
             </div>
 
