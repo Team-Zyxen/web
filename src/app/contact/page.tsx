@@ -116,7 +116,7 @@ export default function ContactPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="fade-in-up-delay-1">
                     <label htmlFor="firstName" className="block text-sm font-medium text-white mb-2">
-                      First Name
+                      Name
                     </label>
                     <input
                       type="text"
@@ -131,7 +131,7 @@ export default function ContactPage() {
 
                   <div className="fade-in-up-delay-1">
                     <label htmlFor="lastName" className="block text-sm font-medium text-white mb-2">
-                      Last Name
+                      Company/Business Name
                     </label>
                     <input
                       type="text"
@@ -179,7 +179,7 @@ export default function ContactPage() {
 
                 <div className="fade-in-up-delay-3">
                   <label htmlFor="message" className="block text-sm font-medium text-white mb-2">
-                    Message
+                    How can we help?
                   </label>
                   <textarea
                     id="message"
