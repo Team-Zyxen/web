@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useRef, useEffect } from "react";
 
@@ -138,12 +139,15 @@ const HeroSection = () => {
                         AI-Driven, Intelligent Software for Modern Challenges
                     </p>
                     <div className="flex justify-center gap-4 pt-6 fade-in-up-delay-1">
+                        <Link href="/contact">
                         <button className="px-8 py-3 font-semibold text-white transition-all duration-300 ease-in-out bg-purple-600 rounded-md hover:scale-105 hover:bg-purple-700">
                             Get Started
                         </button>
+                        </Link>
+                        <Link href="/about">
                         <button className="px-8 py-3 font-semibold transition-all duration-300 ease-in-out border rounded-md border-purple-500 text-purple-400 hover:scale-105 hover:text-purple-300 hover:bg-purple-500/10">
                             Learn More
-                        </button>
+                        </button></Link>
                     </div>
                 </div>
             </div>
