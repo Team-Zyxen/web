@@ -22,6 +22,7 @@ const WorkGallerySection: React.FC = () => {
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
+    // Detect if the device has a touch screen
     const touch =
       typeof window !== "undefined" &&
       ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
@@ -48,7 +49,7 @@ const WorkGallerySection: React.FC = () => {
     { id: 5, title: "Project Epsilon", width: "w-[420px]", preview: "/previews/spaceflux.mp4", thumbnail: "/previews/spacefluxt.png" },
   ];
 
-  // duplicate for seamless loop
+  // Duplicate for seamless loop
   const duplicatedProjects = [...projects, ...projects];
 
   // --- DESKTOP LOGIC ---
@@ -84,9 +85,6 @@ const WorkGallerySection: React.FC = () => {
       e.preventDefault();
       // On mobile, open the modal instead of playing in-line
       setActiveMobileProject(project);
-    } else {
-      // On desktop, you might want click to do nothing (since hover plays), 
-      // or navigate to a project page. For now, we leave it as is.
     }
   };
 
@@ -96,7 +94,6 @@ const WorkGallerySection: React.FC = () => {
 
   return (
     <section className="py-20 bg-black text-white relative">
-      {/* Centered header inside centered container */}
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center space-y-4 mb-16">
           <div className="inline-block">
@@ -107,9 +104,8 @@ const WorkGallerySection: React.FC = () => {
         </div>
       </div>
 
-      {/* Full-width scrolling strip (edge to edge) */}
+      {/* Full-width scrolling strip */}
       <div className="relative w-screen left-1/2 right-1/2 -translate-x-1/2 overflow-hidden work-gallery-mask" style={{ marginTop: 0 }}>
-        {/* add some horizontal padding so cards don't stick to extreme edges */}
         <div className="px-6 md:px-10">
           <div
             className="work-gallery-scroll"
@@ -126,6 +122,7 @@ const WorkGallerySection: React.FC = () => {
                   role="button"
                   tabIndex={0}
                   onMouseEnter={() => {
+                    // Only hover-play if NOT on touch device
                     if (!isTouch) {
                       setHoveredId(key);
                       playVideo(key);
@@ -144,12 +141,10 @@ const WorkGallerySection: React.FC = () => {
                     }
                   }}
                 >
-                  {/* scale wrapper - uses transform so no layout shift */}
                   <div
                     className={`absolute inset-0 transition-transform duration-300 ease-out transform ${isPlaying ? "scale-105 md:scale-110 z-20" : "scale-100 z-0"}`}
                     style={{ transformOrigin: "center center", willChange: "transform, opacity" }}
                   >
-                    {/* thumbnail */}
                     <img
                       src={project.thumbnail}
                       alt={`${project.title} thumbnail`}
@@ -157,10 +152,9 @@ const WorkGallerySection: React.FC = () => {
                       loading="lazy"
                     />
 
-                    {/* dark overlay to make letterbox look consistent */}
                     <div className="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-200"></div>
 
-                    {/* video with contain to avoid cropping - DESKTOP ONLY */}
+                    {/* Desktop Video (Hidden/Paused by default, plays on hover) */}
                     <video
                       ref={(el) => (videoRefs.current[key] = el)}
                       src={project.preview}
@@ -185,7 +179,6 @@ const WorkGallerySection: React.FC = () => {
           onClick={closeMobileOverlay}
         >
             <div className="relative w-full max-w-4xl px-4">
-                {/* Close instruction / button (Optional UX) */}
                 <div className="absolute -top-12 right-4 text-white/50 text-sm">
                    Tap anywhere to close
                 </div>
@@ -195,8 +188,9 @@ const WorkGallerySection: React.FC = () => {
                   className="w-full max-h-[80vh] rounded-lg shadow-2xl"
                   autoPlay
                   loop
+                  muted={false} // You can change to true if you want it silent by default
                   playsInline
-                  controls={false} // Clean look, no controls
+                  controls={false}
                 />
                 
                 <h3 className="text-center text-white mt-4 text-xl font-bold">
