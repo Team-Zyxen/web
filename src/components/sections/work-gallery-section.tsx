@@ -8,26 +8,23 @@ const WorkGallerySection: React.FC = () => {
   const [isTouch, setIsTouch] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // modal state for mobile: when set, show full-screen centered player
-  const [modalKey, setModalKey] = useState<string | null>(null);
+  // modal holds project id as string (e.g. "3")
+  const [modalProjectId, setModalProjectId] = useState<string | null>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const modalVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    const touch =
-      typeof window !== "undefined" &&
-      ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
-    setIsTouch(Boolean(touch));
-
-    const handleResize = () => {
-      // treat mobile as width < 768 (tailwind md breakpoint)
+    const check = () => {
+      const touch =
+        typeof window !== "undefined" &&
+        ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
+      setIsTouch(Boolean(touch));
       setIsMobile(typeof window !== "undefined" ? window.innerWidth < 768 : false);
     };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const projects = [
@@ -52,9 +49,7 @@ const WorkGallerySection: React.FC = () => {
       const p = vid.play();
       if (p && typeof p.then === "function") p.catch(() => {});
       setPlayingKey(key);
-    } catch (e) {
-      // ignore play errors
-    }
+    } catch (e) {}
   };
 
   const stopVideo = (key: string) => {
@@ -70,69 +65,58 @@ const WorkGallerySection: React.FC = () => {
   const toggleVideo = (key: string) => {
     const vid = videoRefs.current[key];
     if (!vid) return;
-    if (!vid.paused && !vid.ended) {
-      stopVideo(key);
-    } else {
-      playVideo(key);
-    }
+    if (!vid.paused && !vid.ended) stopVideo(key);
+    else playVideo(key);
   };
 
-  // OPEN modal for mobile
-  const openModal = (key: string) => {
-    // pause any inline playing videos
+  // open mobile modal for a project id (string)
+  const openModalForProject = (projectId: string) => {
+    // pause any inline playing video
     if (playingKey) stopVideo(playingKey);
-    setModalKey(key);
+    setModalProjectId(projectId);
   };
 
-  // CLOSE modal
   const closeModal = () => {
-    // pause modal video
+    // stop modal player
     try {
       if (modalVideoRef.current) {
         modalVideoRef.current.pause();
         modalVideoRef.current.currentTime = 0;
       }
     } catch (e) {}
-    setModalKey(null);
+    setModalProjectId(null);
   };
 
-  // When modalKey changes, play the modal video (user tapped — autoplay with sound allowed)
+  // when modal opens, play modal video (unmuted) and listen for Escape
   useEffect(() => {
-    if (!modalKey) return;
+    if (!modalProjectId) return;
     const el = modalVideoRef.current;
-    if (!el) return;
-    // attempt to unmute (user interaction triggered)
-    el.muted = false;
-    el.loop = true;
-    el.playsInline = true;
-    const tryPlay = async () => {
-      try {
-        el.currentTime = 0;
-        await el.play();
-      } catch (e) {
-        // ignore
-      }
-    };
-    tryPlay();
-
+    if (el) {
+      el.muted = false; // allow audio after user tap
+      el.loop = true;
+      el.playsInline = true;
+      el.currentTime = 0;
+      el.play().catch(() => {});
+    }
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") closeModal();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalKey]);
+  }, [modalProjectId]);
 
-  // helper to get project by key string like "3-1"
-  const getProjectFromKey = (key: string | null) => {
-    if (!key) return null;
-    const idStr = key.split("-")[0];
-    const idNum = Number(idStr);
-    return projects.find((p) => p.id === idNum) || null;
+  const getProjectById = (idStr: string | null) => {
+    if (!idStr) return null;
+    const id = Number(idStr);
+    return projects.find((p) => p.id === id) || null;
   };
+
+  // pause the CSS animation when modal open by setting inline style
+  const isModalOpen = Boolean(modalProjectId);
 
   return (
     <section className="py-20 bg-black text-white">
-      {/* Centered header inside centered container */}
+      {/* Header */}
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center space-y-4 mb-16">
           <div className="inline-block">
@@ -143,12 +127,13 @@ const WorkGallerySection: React.FC = () => {
         </div>
       </div>
 
-      {/* Full-width scrolling strip (edge to edge) */}
-      <div className="relative w-screen left-1/2 right-1/2 -translate-x-1/2 overflow-hidden work-gallery-mask" style={{ marginTop: 0 }}>
-        {/* add some horizontal padding so cards don't stick to extreme edges */}
+      {/* Full-width scrolling strip */}
+      <div className="relative w-screen left-1/2 right-1/2 -translate-x-1/2 overflow-hidden work-gallery-mask">
         <div className="px-6 md:px-10">
           <div
             className="work-gallery-scroll"
+            // pause animation when modal open to avoid visual movement while modal shows
+            style={{ animationPlayState: isModalOpen ? "paused" : undefined }}
             aria-hidden={false}
           >
             {duplicatedProjects.map((project, index) => {
@@ -174,21 +159,25 @@ const WorkGallerySection: React.FC = () => {
                     }
                   }}
                   onClick={(e) => {
-                    // on mobile open modal; on desktop keep toggle behavior
+                    // Mobile behavior: if touch AND mobile width -> open modal in center
                     if (isTouch && isMobile) {
                       e.preventDefault();
-                      openModal(key);
-                    } else if (isTouch) {
-                      // if touch but not mobile width, keep toggle behavior
+                      // use project.id (not index) to open modal
+                      openModalForProject(String(project.id));
+                      return;
+                    }
+                    // Desktop/touch-not-mobile: preserve toggle behavior for inline play
+                    if (isTouch) {
                       e.preventDefault();
                       toggleVideo(key);
+                      return;
                     }
+                    // Desktop mouse click: do nothing special (hover handles play)
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      // keyboard opens modal only if mobile (rare), otherwise toggles
-                      if (isTouch && isMobile) openModal(key);
+                      if (isTouch && isMobile) openModalForProject(String(project.id));
                       else toggleVideo(key);
                     }
                     if (e.key === "Escape") {
@@ -196,12 +185,10 @@ const WorkGallerySection: React.FC = () => {
                     }
                   }}
                 >
-                  {/* scale wrapper - uses transform so no layout shift */}
                   <div
                     className={`absolute inset-0 transition-transform duration-300 ease-out transform ${isPlaying ? "scale-105 md:scale-110 z-20" : "scale-100 z-0"}`}
                     style={{ transformOrigin: "center center", willChange: "transform, opacity" }}
                   >
-                    {/* thumbnail */}
                     <img
                       src={project.thumbnail}
                       alt={`${project.title} thumbnail`}
@@ -209,10 +196,8 @@ const WorkGallerySection: React.FC = () => {
                       loading="lazy"
                     />
 
-                    {/* dark overlay to make letterbox look consistent */}
                     <div className="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-200"></div>
 
-                    {/* video with contain to avoid cropping */}
                     <video
                       ref={(el) => (videoRefs.current[key] = el)}
                       src={project.preview}
@@ -230,31 +215,28 @@ const WorkGallerySection: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Modal Overlay */}
-      {modalKey && isTouch && isMobile && (
+      {/* Mobile Modal: only show on touch devices + small screens */}
+      {isTouch && isMobile && modalProjectId && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => closeModal()} // click on background closes
+          onClick={() => closeModal()}
           role="dialog"
           aria-modal="true"
         >
           <div
             className="w-full max-w-lg mx-auto rounded-lg overflow-hidden"
-            onClick={(e) => e.stopPropagation()} // prevent background click when clicking the player/card
+            onClick={(e) => e.stopPropagation()} // prevent background click when interacting with modal content
           >
-            {/* Show the selected project's video in large centered player */}
             <video
               ref={modalVideoRef}
-              src={getProjectFromKey(modalKey)?.preview}
-              poster={getProjectFromKey(modalKey)?.thumbnail}
+              src={getProjectById(modalProjectId)?.preview}
+              poster={getProjectById(modalProjectId)?.thumbnail}
               className="w-full h-[60vh] md:h-[70vh] bg-black rounded"
               controls
               playsInline
-              // do not set muted here so user can hear audio after tap
             />
-            {/* Optional caption / close button */}
             <div className="flex items-center justify-between px-3 py-2 bg-gray-900">
-              <div className="text-sm text-gray-200">{getProjectFromKey(modalKey)?.title}</div>
+              <div className="text-sm text-gray-200">{getProjectById(modalProjectId)?.title}</div>
               <button
                 onClick={() => closeModal()}
                 className="text-sm text-gray-100 px-3 py-1 bg-purple-600 rounded"
