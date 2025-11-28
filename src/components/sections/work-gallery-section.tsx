@@ -101,6 +101,13 @@ const WorkGallerySection: React.FC = () => {
           </div>
           <h2 className="text-4xl md:text-5xl font-bold">Crafted by Zyxen</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">Explore our portfolio of innovative solutions and transformative projects</p>
+          
+          {/* --- MOBILE ONLY INSTRUCTION TEXT --- */}
+          {isTouch && (
+            <p className="text-sm text-purple-400 font-medium animate-pulse mt-2">
+              (Tap on a thumbnail to see demo)
+            </p>
+          )}
         </div>
       </div>
 
@@ -183,20 +190,15 @@ const WorkGallerySection: React.FC = () => {
                    Tap anywhere to close
                 </div>
                 
-                {/* FIX APPLIED HERE:
-                   1. Added 'muted' property (Required for mobile autoplay)
-                   2. Added 'playsInline' (Required for iOS)
-                   3. Added 'controls' just in case autoplay fails, so user can manually tap play
-                */}
                 <video
                   src={activeMobileProject.preview}
                   className="w-full max-h-[80vh] rounded-lg shadow-2xl"
                   autoPlay
                   loop
-                  muted 
+                  muted
                   playsInline
-                  controls // Added controls so users can unmute or play manually if needed
-                  onClick={(e) => e.stopPropagation()} // Prevent closing when clicking video controls
+                  controls 
+                  onClick={(e) => e.stopPropagation()} 
                 />
                 
                 <h3 className="text-center text-white mt-4 text-xl font-bold">
