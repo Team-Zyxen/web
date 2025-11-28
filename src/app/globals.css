@@ -365,11 +365,13 @@ nextjs-portal {
 .animate-toast-slide {
   animation: toast-slide 0.3s ease-out;
 }
+/* ... keep your @theme and tailwind imports at the top ... */
+
 /* -------------------------------------------------------------------------- */
 /* WORK GALLERY ANIMATIONS & STYLES                         */
 /* -------------------------------------------------------------------------- */
 
-/* The Infinite Animation Definition */
+/* 1. Define the scrolling animation */
 @keyframes work-gallery-infinite-scroll {
   0% {
     transform: translateX(0);
@@ -379,35 +381,33 @@ nextjs-portal {
   }
 }
 
-/* The Scrolling Track */
+/* 2. The flex container for the cards */
 .work-gallery-scroll {
   display: flex;
   width: max-content;
   align-items: center;
-  gap: 1.5rem; /* Keep consistent gap */
-  animation: work-gallery-infinite-scroll 40s linear infinite; /* Adjust speed here */
+  gap: 1.5rem; 
+  animation: work-gallery-infinite-scroll 40s linear infinite; 
   will-change: transform;
 }
 
-/* CRITICAL FIX FOR MOBILE: 
-   Only pause on hover if the device actually supports a mouse (Desktop).
-   This prevents the scroll from getting stuck when you touch it on a phone.
-*/
+/* 3. MOBILE FIX: Only pause animation on hover if the device has a mouse. 
+      This prevents the scroll from sticking when you touch the screen on mobile. */
 @media (hover: hover) {
   .work-gallery-scroll:hover {
     animation-play-state: paused;
   }
 }
 
-/* Left & Right Fade Masks */
+/* 4. Left & Right Fade Masks */
 .work-gallery-mask::before,
 .work-gallery-mask::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 8vw; /* Responsive width for the fade */
-  pointer-events: none; /* Ensures you can click items under the fade */
+  width: 8vw;
+  pointer-events: none;
   z-index: 30;
 }
 
@@ -421,14 +421,14 @@ nextjs-portal {
   background: linear-gradient(270deg, #000000 0%, transparent 100%);
 }
 
-/* Video Styling */
+/* 5. Video Styling */
 .work-gallery-video {
   background-color: black;
   object-fit: contain;
   object-position: center;
 }
 
-/* Toast Animation (kept from your original file) */
+/* 6. Toast Animation */
 @keyframes toast-slide {
   0% {
     opacity: 0;
