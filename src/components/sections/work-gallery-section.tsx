@@ -154,7 +154,7 @@ const WorkGallerySection: React.FC = () => {
 
                     <div className="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-200"></div>
 
-                    {/* Desktop Video (Hidden/Paused by default, plays on hover) */}
+                    {/* Desktop Video */}
                     <video
                       ref={(el) => (videoRefs.current[key] = el)}
                       src={project.preview}
@@ -183,14 +183,20 @@ const WorkGallerySection: React.FC = () => {
                    Tap anywhere to close
                 </div>
                 
+                {/* FIX APPLIED HERE:
+                   1. Added 'muted' property (Required for mobile autoplay)
+                   2. Added 'playsInline' (Required for iOS)
+                   3. Added 'controls' just in case autoplay fails, so user can manually tap play
+                */}
                 <video
                   src={activeMobileProject.preview}
                   className="w-full max-h-[80vh] rounded-lg shadow-2xl"
                   autoPlay
                   loop
-                  muted={false} // You can change to true if you want it silent by default
+                  muted 
                   playsInline
-                  controls={false}
+                  controls // Added controls so users can unmute or play manually if needed
+                  onClick={(e) => e.stopPropagation()} // Prevent closing when clicking video controls
                 />
                 
                 <h3 className="text-center text-white mt-4 text-xl font-bold">
