@@ -6,14 +6,28 @@ const WorkGallerySection: React.FC = () => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [isTouch, setIsTouch] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // modal state for mobile: when set, show full-screen centered player
+  const [modalKey, setModalKey] = useState<string | null>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const modalVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const touch =
       typeof window !== "undefined" &&
       ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
     setIsTouch(Boolean(touch));
+
+    const handleResize = () => {
+      // treat mobile as width < 768 (tailwind md breakpoint)
+      setIsMobile(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const projects = [
@@ -63,6 +77,59 @@ const WorkGallerySection: React.FC = () => {
     }
   };
 
+  // OPEN modal for mobile
+  const openModal = (key: string) => {
+    // pause any inline playing videos
+    if (playingKey) stopVideo(playingKey);
+    setModalKey(key);
+  };
+
+  // CLOSE modal
+  const closeModal = () => {
+    // pause modal video
+    try {
+      if (modalVideoRef.current) {
+        modalVideoRef.current.pause();
+        modalVideoRef.current.currentTime = 0;
+      }
+    } catch (e) {}
+    setModalKey(null);
+  };
+
+  // When modalKey changes, play the modal video (user tapped — autoplay with sound allowed)
+  useEffect(() => {
+    if (!modalKey) return;
+    const el = modalVideoRef.current;
+    if (!el) return;
+    // attempt to unmute (user interaction triggered)
+    el.muted = false;
+    el.loop = true;
+    el.playsInline = true;
+    const tryPlay = async () => {
+      try {
+        el.currentTime = 0;
+        await el.play();
+      } catch (e) {
+        // ignore
+      }
+    };
+    tryPlay();
+
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") closeModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalKey]);
+
+  // helper to get project by key string like "3-1"
+  const getProjectFromKey = (key: string | null) => {
+    if (!key) return null;
+    const idStr = key.split("-")[0];
+    const idNum = Number(idStr);
+    return projects.find((p) => p.id === idNum) || null;
+  };
+
   return (
     <section className="py-20 bg-black text-white">
       {/* Centered header inside centered container */}
@@ -107,7 +174,12 @@ const WorkGallerySection: React.FC = () => {
                     }
                   }}
                   onClick={(e) => {
-                    if (isTouch) {
+                    // on mobile open modal; on desktop keep toggle behavior
+                    if (isTouch && isMobile) {
+                      e.preventDefault();
+                      openModal(key);
+                    } else if (isTouch) {
+                      // if touch but not mobile width, keep toggle behavior
                       e.preventDefault();
                       toggleVideo(key);
                     }
@@ -115,7 +187,9 @@ const WorkGallerySection: React.FC = () => {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      toggleVideo(key);
+                      // keyboard opens modal only if mobile (rare), otherwise toggles
+                      if (isTouch && isMobile) openModal(key);
+                      else toggleVideo(key);
                     }
                     if (e.key === "Escape") {
                       stopVideo(key);
@@ -155,6 +229,42 @@ const WorkGallerySection: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Modal Overlay */}
+      {modalKey && isTouch && isMobile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => closeModal()} // click on background closes
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-lg mx-auto rounded-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()} // prevent background click when clicking the player/card
+          >
+            {/* Show the selected project's video in large centered player */}
+            <video
+              ref={modalVideoRef}
+              src={getProjectFromKey(modalKey)?.preview}
+              poster={getProjectFromKey(modalKey)?.thumbnail}
+              className="w-full h-[60vh] md:h-[70vh] bg-black rounded"
+              controls
+              playsInline
+              // do not set muted here so user can hear audio after tap
+            />
+            {/* Optional caption / close button */}
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-900">
+              <div className="text-sm text-gray-200">{getProjectFromKey(modalKey)?.title}</div>
+              <button
+                onClick={() => closeModal()}
+                className="text-sm text-gray-100 px-3 py-1 bg-purple-600 rounded"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
