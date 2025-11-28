@@ -2,50 +2,45 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
-interface WorkGallerySectionProps {
-  // useful for testing on desktop — set to true to force mobile overlay behavior
-  forceMobilePreview?: boolean;
+// Define the project type
+interface Project {
+  id: number;
+  title: string;
+  width: string;
+  preview: string;
+  thumbnail: string;
 }
 
-const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePreview = false }) => {
+const WorkGallerySection: React.FC = () => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [isTouch, setIsTouch] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // overlay state for mobile center preview
-  const [centeredKey, setCenteredKey] = useState<string | null>(null);
+  // State for the mobile "Modal" view
+  const [activeMobileProject, setActiveMobileProject] = useState<Project | null>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
-  const overlayVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const touch =
       typeof window !== "undefined" &&
       ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
     setIsTouch(Boolean(touch));
-
-    const checkMobile = () => {
-      if (typeof window === "undefined") return;
-      const mobileBp = window.innerWidth <= 768;
-      setIsMobile(Boolean(forceMobilePreview || touch || mobileBp));
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceMobilePreview]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeOverlay();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const projects = [
+  // Lock body scroll when mobile modal is open
+  useEffect(() => {
+    if (activeMobileProject) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [activeMobileProject]);
+
+  const projects: Project[] = [
     { id: 1, title: "Project Alpha", width: "w-[400px]", preview: "/previews/aura.mp4", thumbnail: "/previews/aurat.png" },
     { id: 2, title: "Project Beta",  width: "w-[320px]", preview: "/previews/aroma.mp4", thumbnail: "/previews/aromat.png" },
     { id: 3, title: "Project Gamma", width: "w-[380px]", preview: "/previews/argus.mp4", thumbnail: "/previews/argust.png" },
@@ -53,29 +48,24 @@ const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePrev
     { id: 5, title: "Project Epsilon", width: "w-[420px]", preview: "/previews/spaceflux.mp4", thumbnail: "/previews/spacefluxt.png" },
   ];
 
+  // duplicate for seamless loop
   const duplicatedProjects = [...projects, ...projects];
 
-  const safePlay = async (vid: HTMLVideoElement | null) => {
-    if (!vid) return;
-    try {
-      vid.muted = true;
-      vid.playsInline = true;
-      vid.loop = true;
-      vid.currentTime = 0;
-      const p = vid.play();
-      if (p && typeof (p as Promise<void>).catch === "function") {
-        (p as Promise<void>).catch(() => {
-          /* ignore autoplay rejection */
-        });
-      }
-    } catch {}
-  };
-
+  // --- DESKTOP LOGIC ---
   const playVideo = (key: string) => {
     const vid = videoRefs.current[key];
     if (!vid) return;
-    safePlay(vid);
-    setPlayingKey(key);
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    try {
+      vid.currentTime = 0;
+      const p = vid.play();
+      if (p && typeof p.then === "function") p.catch(() => {});
+      setPlayingKey(key);
+    } catch (e) {
+      // ignore play errors
+    }
   };
 
   const stopVideo = (key: string) => {
@@ -84,90 +74,29 @@ const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePrev
     try {
       vid.pause();
       vid.currentTime = 0;
-    } catch {}
+    } catch (e) {}
     setPlayingKey((c) => (c === key ? null : c));
   };
 
-  const toggleVideo = (key: string) => {
-    const vid = videoRefs.current[key];
-    if (!vid) return;
-    if (!vid.paused && !vid.ended) stopVideo(key);
-    else playVideo(key);
-  };
-
-  // overlay open/close
-  const openOverlay = async (key: string) => {
-    // Pause any playing card video
-    if (playingKey) {
-      try {
-        const pv = videoRefs.current[playingKey];
-        pv?.pause();
-        if (pv) pv.currentTime = 0;
-      } catch {}
-      setPlayingKey(null);
-    }
-
-    setCenteredKey(key);
-
-    // lock body scroll (try safe)
-    try {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.touchAction = "none";
-    } catch {}
-
-    // small delay to ensure overlayVideoRef is attached
-    setTimeout(async () => {
-      const ov = overlayVideoRef.current;
-      if (!ov) return;
-      ov.muted = true;
-      ov.playsInline = true;
-      ov.loop = true;
-      try {
-        ov.currentTime = 0;
-        const p = ov.play();
-        if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => {});
-      } catch {}
-    }, 40);
-  };
-
-  const closeOverlay = () => {
-    // stop overlay video
-    try {
-      const ov = overlayVideoRef.current;
-      if (ov) {
-        ov.pause();
-        ov.currentTime = 0;
-      }
-    } catch {}
-    setCenteredKey(null);
-
-    try {
-      document.body.style.overflow = "";
-      document.documentElement.style.touchAction = "";
-    } catch {}
-  };
-
-  // pointer handler — more reliable on touch devices than click
-  const onCardPointerUp = (key: string, e: React.PointerEvent) => {
-    // only consider primary button / primary touch
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
-    // if mobile (or forced), open overlay, else follow existing behavior
-    if (isMobile) {
-      e.preventDefault();
-      openOverlay(key);
-      return;
-    }
-
-    // otherwise on touch devices that are not considered mobile, toggle
+  // --- MOBILE HANDLER ---
+  const handleCardClick = (e: React.MouseEvent | React.KeyboardEvent, project: Project, key: string) => {
     if (isTouch) {
       e.preventDefault();
-      toggleVideo(key);
+      // On mobile, open the modal instead of playing in-line
+      setActiveMobileProject(project);
+    } else {
+      // On desktop, you might want click to do nothing (since hover plays), 
+      // or navigate to a project page. For now, we leave it as is.
     }
+  };
+
+  const closeMobileOverlay = () => {
+    setActiveMobileProject(null);
   };
 
   return (
-    <section className="py-20 bg-black text-white">
+    <section className="py-20 bg-black text-white relative">
+      {/* Centered header inside centered container */}
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center space-y-4 mb-16">
           <div className="inline-block">
@@ -178,19 +107,24 @@ const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePrev
         </div>
       </div>
 
+      {/* Full-width scrolling strip (edge to edge) */}
       <div className="relative w-screen left-1/2 right-1/2 -translate-x-1/2 overflow-hidden work-gallery-mask" style={{ marginTop: 0 }}>
+        {/* add some horizontal padding so cards don't stick to extreme edges */}
         <div className="px-6 md:px-10">
-          <div className="work-gallery-scroll" aria-hidden={false}>
+          <div
+            className="work-gallery-scroll"
+            aria-hidden={false}
+          >
             {duplicatedProjects.map((project, index) => {
               const key = `${project.id}-${index}`;
               const isPlaying = playingKey === key;
+
               return (
                 <div
                   key={key}
                   className={`work-gallery-card ${project.width} h-80 flex-shrink-0 rounded-lg relative overflow-hidden bg-slate-800`}
                   role="button"
                   tabIndex={0}
-                  onPointerUp={(e) => onCardPointerUp(key, e)}
                   onMouseEnter={() => {
                     if (!isTouch) {
                       setHoveredId(key);
@@ -203,30 +137,30 @@ const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePrev
                       stopVideo(key);
                     }
                   }}
+                  onClick={(e) => handleCardClick(e, project, key)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      if (isMobile) openOverlay(key);
-                      else toggleVideo(key);
-                    }
-                    if (e.key === "Escape") {
-                      stopVideo(key);
-                      if (isMobile) closeOverlay();
+                      handleCardClick(e, project, key);
                     }
                   }}
                 >
+                  {/* scale wrapper - uses transform so no layout shift */}
                   <div
                     className={`absolute inset-0 transition-transform duration-300 ease-out transform ${isPlaying ? "scale-105 md:scale-110 z-20" : "scale-100 z-0"}`}
                     style={{ transformOrigin: "center center", willChange: "transform, opacity" }}
                   >
+                    {/* thumbnail */}
                     <img
                       src={project.thumbnail}
                       alt={`${project.title} thumbnail`}
                       className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${isPlaying ? "opacity-0" : "opacity-100"}`}
                       loading="lazy"
                     />
+
+                    {/* dark overlay to make letterbox look consistent */}
                     <div className="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-200"></div>
 
+                    {/* video with contain to avoid cropping - DESKTOP ONLY */}
                     <video
                       ref={(el) => (videoRefs.current[key] = el)}
                       src={project.preview}
@@ -244,47 +178,34 @@ const WorkGallerySection: React.FC<WorkGallerySectionProps> = ({ forceMobilePrev
         </div>
       </div>
 
-      {/* Mobile overlay */}
-      {centeredKey && (() => {
-        const id = parseInt(centeredKey.split("-")[0], 10);
-        const project = projects.find((p) => p.id === id);
-        if (!project) return null;
-
-        return (
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4"
-            onClick={() => closeOverlay()}
-            aria-modal="true"
-            role="dialog"
-          >
-            <div
-              className="max-w-full w-full max-h-full rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="relative flex items-center justify-center">
+      {/* --- MOBILE FULLSCREEN OVERLAY --- */}
+      {isTouch && activeMobileProject && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm transition-opacity duration-300"
+          onClick={closeMobileOverlay}
+        >
+            <div className="relative w-full max-w-4xl px-4">
+                {/* Close instruction / button (Optional UX) */}
+                <div className="absolute -top-12 right-4 text-white/50 text-sm">
+                   Tap anywhere to close
+                </div>
+                
                 <video
-                  ref={overlayVideoRef}
-                  src={project.preview}
-                  poster={project.thumbnail}
-                  className="w-full max-w-[920px] max-h-[86vh] rounded-md object-contain"
-                  muted
+                  src={activeMobileProject.preview}
+                  className="w-full max-h-[80vh] rounded-lg shadow-2xl"
+                  autoPlay
+                  loop
                   playsInline
-                  controls={false}
+                  controls={false} // Clean look, no controls
                 />
-                <button
-                  onClick={() => closeOverlay()}
-                  aria-label="Close preview"
-                  className="absolute top-3 right-3 rounded-full bg-white/10 p-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
+                
+                <h3 className="text-center text-white mt-4 text-xl font-bold">
+                    {activeMobileProject.title}
+                </h3>
             </div>
-          </div>
-        );
-      })()}
+        </div>
+      )}
+
     </section>
   );
 };
