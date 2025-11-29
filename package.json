@@ -8,7 +8,9 @@
         "start": "next start",
         "lint": "next lint"
     },
-    "engines": { "node": "18.x" },
+    "engines": {
+  "node": "24.x"
+},
     "dependencies": {
         "@babel/parser": "^7.28.5",
         "@emailjs/browser": "^4.4.1",
